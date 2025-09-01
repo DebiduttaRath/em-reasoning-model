@@ -643,7 +643,7 @@ Improved reasoning:"""
         
         return "cot"
     
-    def _detect_best_method(self, question: str) -> str:
+    def _detect_best_method(self, question: str, method=None) -> str:
         """Automatically detect the best reasoning method for the question."""
         # If we have a memory layer with performance tracking, use it
         if hasattr(self, 'memory_layer') and self.memory_layer:
