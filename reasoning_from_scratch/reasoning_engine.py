@@ -507,11 +507,42 @@ class ReasoningExplainer:
             return f"Low confidence ({int(confidence*100)}%) - significant uncertainty, approach with caution"
 
 
-class ReasoningEngine(HyperReasoningEngine):
+class ReasoningEngine:
     """World-class reasoning engine coordinating all advanced components."""
     
     def __init__(self, model, tokenizer, memory_layer=None):
-        super().__init__(model, tokenizer, memory_layer)
+        self.model = model
+        self.tokenizer = tokenizer
+        self.memory_layer = memory_layer
+
+        # Initialize all components here
+        self.prompt_manager = PromptManager()
+        self.pal_executor = PALExecutor()
+        self.self_consistency = SelfConsistencyModule()
+        self.tree_of_thoughts = TreeOfThoughts()
+        self.verifier = ReasoningVerifier()
+        self.meta_reasoning = MetaReasoningLayer()
+        self.multi_modal_processor = MultiModalProcessor()
+        self.uncertainty_quantifier = UncertaintyQuantifier()
+        self.reasoning_explainer = ReasoningExplainer()
+        self.domain_experts = DomainExpertSystem()
+
+        self.reasoning_quality_threshold = 0.9
+
+        # Method usage stats
+        self.method_usage_stats = {
+            "cot": 0, "pal": 0, "self_consistency": 0, "tot": 0,
+            "meta_reasoning": 0, "hybrid": 0, "recursive": 0
+        }
+
+        # Metrics
+        self.reasoning_metrics = {
+            "accuracy": 0.0,
+            "explainability": 0.0,
+            "robustness": 0.0,
+            "efficiency": 0.0,
+            "innovation": 0.0
+        }
     
     def solve_query(self, question: str, method: str = "auto") -> Dict[str, Any]:
         """Solve a query using world-class reasoning with advanced capabilities."""
