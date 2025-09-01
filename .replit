@@ -4,6 +4,7 @@ modules = ["python-3.10"]
 channel = "stable-25_05"
 
 [workflows]
+runButton = "Start Frontend"
 
 [[workflows.workflow]]
 name = "Start Backend"
@@ -13,3 +14,16 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python server.py"
+
+[[workflows.workflow]]
+name = "Start Frontend"
+author = 47120722
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "streamlit run ui.py --server.port 5000 --server.address 0.0.0.0"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
