@@ -18,7 +18,7 @@ from reasoning_from_scratch.qwen3 import (
     load_hf_weights_into_qwen
 )
 from reasoning_from_scratch.reasoning_engine import ReasoningEngine
-from reasoning_from_scratch.memory_layer import AdvancedKnowledgeMemoryLayer
+from reasoning_from_scratch.memory_layer import KnowledgeMemoryLayer
 from reasoning_from_scratch.advanced_features import (
     ContinuousLearningEngine, RealtimeReasoningOptimizer, 
     WorldClassReasoningValidator, InnovativeReasoningMethods,
@@ -145,7 +145,7 @@ async def startup_event():
         model.eval()
         
         # Initialize advanced knowledge layer
-        knowledge_layer = AdvancedKnowledgeMemoryLayer()
+        knowledge_layer = KnowledgeMemoryLayer()
         
         # Initialize reasoning engine with memory layer
         reasoning_engine = ReasoningEngine(model, tokenizer, knowledge_layer)
