@@ -309,7 +309,7 @@ class Qwen3Tokenizer:
     ]
     _SPLIT_RE = re.compile(r"(<\|[^>]+?\|>)")
 
-    def __init__(self, tokenizer_file_path="tokenizer-base.json",
+    def __init__(self, tokenizer_file_path="tokenizer.json",
                  apply_chat_template=False,
                  add_generation_prompt=False,
                  add_thinking=False):
@@ -410,7 +410,7 @@ class KVCache:
 
 def download_qwen3_small(kind="base", tokenizer_only=False, out_dir="."):
     files = {
-        "base": {"model": "qwen3-0.6B-base.pth", "tokenizer": "tokenizer-base.json"},
+        "base": {"model": "qwen3-0.6B-base.pth", "tokenizer": "tokenizer.json"},
         "reasoning": {"model": "qwen3-0.6B-reasoning.pth", "tokenizer": "tokenizer-reasoning.json"},
     }
     if kind not in files:

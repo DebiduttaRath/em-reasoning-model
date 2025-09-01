@@ -145,7 +145,7 @@ def test_tokenizer_equivalence():
         if not s:
             new_name = "tokenizer-reasoning.json"
         else:
-            new_name = "tokenizer-base.json"
+            new_name = "tokenizer.json"
 
         try:
             shutil.move(old_name, new_name)
@@ -204,7 +204,7 @@ def test_model(ModelClass, qwen3_weights_path, generate_fn):
     model.eval()
 
     tokenizer = Qwen3Tokenizer(
-        tokenizer_file_path=qwen3_weights_path / "tokenizer-base.json",
+        tokenizer_file_path=qwen3_weights_path / "tokenizer.json",
         add_generation_prompt=False,
         add_thinking=False
     )
