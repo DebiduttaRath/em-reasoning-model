@@ -100,7 +100,8 @@ class SelfConsistencyModule:
             varied_prompt = f"{prompt}\n\nReasoning path {i+1}:"
             
             # Tokenize
-            token_ids = tokenizer.encode(varied_prompt).unsqueeze(0)
+            ids = self.tokenizer.encode(varied_prompt)
+            token_ids = torch.tensor(ids).unsqueeze(0)
             
             # Generate with sampling (add temperature if model supports it)
             generated_ids = generate_text_basic_cache(
@@ -170,7 +171,8 @@ class TreeOfThoughts:
         current_nodes = []
         for i in range(self.beam_width):
             initial_prompt = prompt_manager.get_prompt("tot", question=question, approach_num=i+1)
-            token_ids = tokenizer.encode(initial_prompt).unsqueeze(0)
+            ids = self.tokenizer.encode(initial_prompt)
+            token_ids = torch.tensor(ids).unsqueeze(0)
             
             generated_ids = generate_text_basic_cache(
                 model, token_ids, max_new_tokens=128, eos_token_id=tokenizer.eos_token_id
@@ -237,7 +239,8 @@ class TreeOfThoughts:
         ]
         
         for prompt in continuation_prompts:
-            token_ids = tokenizer.encode(prompt).unsqueeze(0)
+            ids = self.tokenizer.encode(prompt)
+            token_ids = torch.tensor(ids).unsqueeze(0)
             generated_ids = generate_text_basic_cache(
                 model, token_ids, max_new_tokens=100, eos_token_id=tokenizer.eos_token_id
             )
@@ -462,8 +465,8 @@ The initial reasoning had low confidence. Let me reconsider this problem with de
 3. What evidence am I missing?
 
 Improved reasoning:"""
-        
-        token_ids = self.tokenizer.encode(meta_prompt).unsqueeze(0)
+        ids = self.tokenizer.encode(meta_prompt)
+        token_ids = torch.tensor(ids).unsqueeze(0)
         generated_ids = generate_text_basic_cache(
             self.model, token_ids, max_new_tokens=512, eos_token_id=self.tokenizer.eos_token_id
         )
@@ -680,7 +683,8 @@ Improved reasoning:"""
         else:
             prompt = self.prompt_manager.get_prompt("cot", question=question)
         
-        token_ids = self.tokenizer.encode(prompt).unsqueeze(0)
+        ids = self.tokenizer.encode(prompt)
+        token_ids = torch.tensor(ids).unsqueeze(0)
         
         generated_ids = generate_text_basic_cache(
             self.model, token_ids, max_new_tokens=256, eos_token_id=self.tokenizer.eos_token_id
@@ -704,7 +708,8 @@ Improved reasoning:"""
         else:
             prompt = self.prompt_manager.get_prompt("pal", question=question)
         
-        token_ids = self.tokenizer.encode(prompt).unsqueeze(0)
+        ids = self.tokenizer.encode(prompt)
+        token_ids = torch.tensor(ids).unsqueeze(0)
         
         generated_ids = generate_text_basic_cache(
             self.model, token_ids, max_new_tokens=256, eos_token_id=self.tokenizer.eos_token_id
