@@ -81,6 +81,80 @@ def add_documents(documents: list) -> Dict[str, Any]:
     except Exception as e:
         return {"error": f"Connection Error: {str(e)}"}
 
+def start_auto_learning() -> Dict[str, Any]:
+    """Start auto-learning process."""
+    try:
+        response = requests.post(f"{API_BASE_URL}/start_learning")
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"error": f"API Error: {response.status_code}"}
+    except Exception as e:
+        return {"error": f"Connection Error: {str(e)}"}
+
+def get_learning_status() -> Dict[str, Any]:
+    """Get auto-learning status."""
+    try:
+        response = requests.get(f"{API_BASE_URL}/learning_status")
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"error": f"API Error: {response.status_code}"}
+    except Exception as e:
+        return {"error": f"Connection Error: {str(e)}"}
+
+def learn_from_url(url: str) -> Dict[str, Any]:
+    """Learn from specific URL."""
+    try:
+        payload = {"url": url}
+        response = requests.post(f"{API_BASE_URL}/learn_from_url", json=payload)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"error": f"API Error: {response.status_code}"}
+    except Exception as e:
+        return {"error": f"Connection Error: {str(e)}"}
+
+def add_learning_topic(topic: str) -> Dict[str, Any]:
+    """Add learning topic."""
+    try:
+        payload = {"topic": topic}
+        response = requests.post(f"{API_BASE_URL}/add_topic", json=payload)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"error": f"API Error: {response.status_code}"}
+    except Exception as e:
+        return {"error": f"Connection Error: {str(e)}"}
+
+def submit_feedback(question: str, answer: str, rating: int, feedback: str = "") -> Dict[str, Any]:
+    """Submit user feedback."""
+    try:
+        payload = {
+            "question": question,
+            "answer": answer,
+            "rating": rating,
+            "feedback": feedback
+        }
+        response = requests.post(f"{API_BASE_URL}/feedback", json=payload)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"error": f"API Error: {response.status_code}"}
+    except Exception as e:
+        return {"error": f"Connection Error: {str(e)}"}
+
+def get_performance_stats() -> Dict[str, Any]:
+    """Get performance statistics."""
+    try:
+        response = requests.get(f"{API_BASE_URL}/performance_stats")
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"error": f"API Error: {response.status_code}"}
+    except Exception as e:
+        return {"error": f"Connection Error: {str(e)}"}
+
 # Main UI
 def main():
     st.title("🧠 Beast Reasoning LLM")
@@ -119,6 +193,59 @@ def main():
         
         st.markdown("---")
         
+        # Auto-Learning Status
+        st.header("🧠 Auto-Learning")
+        learning_status = get_learning_status()
+        
+        if "error" not in learning_status and learning_status.get("status") != "not_available":
+            # Display learning status
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Items Learned", learning_status.get("total_items_learned", 0))
+            with col2:
+                st.metric("Topics", learning_status.get("learning_topics_count", 0))
+            
+            # Learning controls
+            if learning_status.get("is_learning", False):
+                st.warning("🔄 Currently learning...")
+            else:
+                if st.button("🚀 Start Learning Cycle"):
+                    with st.spinner("Starting auto-learning..."):
+                        result = start_auto_learning()
+                    if "error" in result:
+                        st.error(result["error"])
+                    else:
+                        st.success(f"Learning started! Will process {result.get('sources_processed', 0)} sources.")
+                        st.experimental_rerun()
+            
+            # Add custom learning topic
+            with st.expander("Add Learning Topic"):
+                new_topic = st.text_input("Enter topic to learn about:")
+                if st.button("Add Topic"):
+                    if new_topic.strip():
+                        result = add_learning_topic(new_topic.strip())
+                        if "error" in result:
+                            st.error(result["error"])
+                        else:
+                            st.success(f"Added topic: {new_topic}")
+                            st.experimental_rerun()
+            
+            # Learn from URL
+            with st.expander("Learn from URL"):
+                url = st.text_input("Enter URL to learn from:")
+                if st.button("Learn from URL"):
+                    if url.strip():
+                        with st.spinner("Learning from URL..."):
+                            result = learn_from_url(url.strip())
+                        if "error" in result:
+                            st.error(result["error"])
+                        else:
+                            st.success("Successfully learned from URL!")
+        else:
+            st.warning("Auto-learning not available")
+        
+        st.markdown("---")
+        
         # Knowledge Management
         st.header("📚 Knowledge Base")
         
@@ -142,7 +269,7 @@ def main():
                 st.error("Failed to end session")
 
     # Main content area
-    tab1, tab2, tab3 = st.tabs(["🎯 Problem Solver", "💬 Chat Interface", "📊 Reasoning Trace"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🎯 Problem Solver", "💬 Chat Interface", "📊 Reasoning Trace", "📈 Performance"])
     
     with tab1:
         st.header("Problem Solver")
@@ -183,6 +310,22 @@ def main():
                 
                 # Store in session state for trace view
                 st.session_state['last_result'] = result
+                
+                # Feedback system
+                st.markdown("### 💬 Rate this Response")
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    rating = st.slider("Rating", 1, 5, 3, help="Rate the quality of this response")
+                with col2:
+                    feedback_text = st.text_input("Optional feedback:")
+                
+                if st.button("Submit Feedback"):
+                    feedback_result = submit_feedback(problem, result['answer'], rating, feedback_text)
+                    if "error" in feedback_result:
+                        st.error(feedback_result["error"])
+                    else:
+                        st.success("Thank you for your feedback!")
+                        st.experimental_rerun()
     
     with tab2:
         st.header("Chat Interface")
@@ -268,6 +411,85 @@ def main():
         
         else:
             st.info("Solve a problem first to see the reasoning trace.")
+    
+    with tab4:
+        st.header("Performance Monitoring")
+        st.markdown("Track the system's learning progress and performance.")
+        
+        # Get performance stats
+        perf_stats = get_performance_stats()
+        
+        if "error" not in perf_stats:
+            # Overall performance
+            st.markdown("### 📊 Overall Performance")
+            
+            overall = perf_stats.get("overall", {})
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Total Feedback", overall.get("total_feedback", 0))
+            with col2:
+                st.metric("Satisfaction Rate", f"{overall.get('satisfaction_rate', 0)*100:.1f}%")
+            with col3:
+                st.metric("Average Rating", f"{overall.get('average_rating', 0):.1f}/5")
+            with col4:
+                method_usage = perf_stats.get("method_usage", {})
+                most_used = max(method_usage.items(), key=lambda x: x[1]) if method_usage else ("N/A", 0)
+                st.metric("Most Used Method", most_used[0].upper())
+            
+            # Method performance
+            st.markdown("### 🔧 Method Performance")
+            method_perf = perf_stats.get("method_performance", {})
+            
+            if method_perf:
+                method_data = []
+                for method, stats in method_perf.items():
+                    method_data.append({
+                        "Method": method.upper(),
+                        "Success Rate": f"{stats.get('success_rate', 0)*100:.1f}%",
+                        "Avg Confidence": f"{stats.get('average_confidence', 0)*100:.1f}%",
+                        "Total Attempts": stats.get('total_attempts', 0)
+                    })
+                
+                st.dataframe(method_data)
+            else:
+                st.info("No method performance data available yet.")
+            
+            # Topic performance
+            st.markdown("### 📚 Topic Performance")
+            topic_perf = perf_stats.get("topic_performance", {})
+            
+            if topic_perf:
+                topic_data = []
+                for topic, stats in topic_perf.items():
+                    topic_data.append({
+                        "Topic": topic.title(),
+                        "Success Rate": f"{stats.get('rate', 0)*100:.1f}%",
+                        "Attempts": stats.get('attempts', 0),
+                        "Successes": stats.get('successes', 0)
+                    })
+                
+                st.dataframe(topic_data)
+            else:
+                st.info("No topic performance data available yet.")
+            
+            # Recent feedback
+            st.markdown("### 📝 Recent Feedback")
+            user_feedback = perf_stats.get("user_feedback", [])
+            
+            if user_feedback:
+                recent_feedback = user_feedback[-5:]  # Show last 5
+                for feedback in reversed(recent_feedback):
+                    with st.expander(f"Rating: {feedback['rating']}/5 - {feedback['timestamp'][:19]}"):
+                        st.write(f"**Question:** {feedback['question'][:100]}...")
+                        st.write(f"**Answer:** {feedback['answer'][:100]}...")
+                        if feedback.get('feedback'):
+                            st.write(f"**Feedback:** {feedback['feedback']}")
+            else:
+                st.info("No feedback data available yet.")
+        
+        else:
+            st.error("Could not load performance statistics.")
 
     # Footer
     st.markdown("---")

@@ -290,31 +290,64 @@ class ReasoningVerifier:
 class ReasoningEngine:
     """Main reasoning engine coordinating all components."""
     
-    def __init__(self, model, tokenizer):
+    def __init__(self, model, tokenizer, memory_layer=None):
         self.model = model
         self.tokenizer = tokenizer
+        self.memory_layer = memory_layer
         self.prompt_manager = PromptManager()
         self.pal_executor = PALExecutor()
         self.self_consistency = SelfConsistencyModule()
         self.tree_of_thoughts = TreeOfThoughts()
         self.verifier = ReasoningVerifier()
+        
+        # Performance tracking
+        self.method_usage_stats = {
+            "cot": 0, "pal": 0, "self_consistency": 0, "tot": 0
+        }
     
     def solve_query(self, question: str, method: str = "auto") -> Dict[str, Any]:
         """Solve a query using the specified reasoning method."""
         if method == "auto":
             method = self._detect_best_method(question)
         
+        # Track method usage
+        if method in self.method_usage_stats:
+            self.method_usage_stats[method] += 1
+        
+        # Solve using the selected method
         if method == "pal":
-            return self._solve_with_pal(question)
+            result = self._solve_with_pal(question)
         elif method == "tot":
-            return self._solve_with_tot(question)
+            result = self._solve_with_tot(question)
         elif method == "self_consistency":
-            return self._solve_with_self_consistency(question)
+            result = self._solve_with_self_consistency(question)
         else:  # Default to chain-of-thought
-            return self._solve_with_cot(question)
+            result = self._solve_with_cot(question)
+        
+        # Track performance if memory layer is available
+        if self.memory_layer:
+            try:
+                # Consider high confidence (>0.7) as success
+                success = result["confidence"] > 0.7
+                self.memory_layer.track_performance(
+                    method, question, success, result["confidence"]
+                )
+            except:
+                pass  # Don't fail if tracking fails
+        
+        return result
     
     def _detect_best_method(self, question: str) -> str:
         """Automatically detect the best reasoning method for the question."""
+        # If we have a memory layer with performance tracking, use it
+        if hasattr(self, 'memory_layer') and self.memory_layer:
+            try:
+                adaptive_method = self.memory_layer.get_best_method_for_question(question)
+                if adaptive_method != "auto":
+                    return adaptive_method
+            except:
+                pass  # Fall back to heuristic method
+        
         question_lower = question.lower()
         
         # Use PAL for mathematical/computational problems

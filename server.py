@@ -37,6 +37,7 @@ model = None
 tokenizer = None
 reasoning_engine = None
 knowledge_layer = None
+auto_learning_system = None
 
 # Request/Response models
 class SolveRequest(BaseModel):
@@ -67,6 +68,18 @@ class ChatResponse(BaseModel):
 
 class AddDocumentsRequest(BaseModel):
     documents: List[str]
+
+class FeedbackRequest(BaseModel):
+    question: str
+    answer: str
+    rating: int  # 1-5 scale
+    feedback: Optional[str] = ""
+
+class LearnFromUrlRequest(BaseModel):
+    url: str
+
+class AddTopicRequest(BaseModel):
+    topic: str
 
 
 @app.on_event("startup")
@@ -102,11 +115,20 @@ async def startup_event():
         model.to(device)
         model.eval()
         
-        # Initialize reasoning engine
-        reasoning_engine = ReasoningEngine(model, tokenizer)
-        
         # Initialize knowledge layer
         knowledge_layer = KnowledgeMemoryLayer()
+        
+        # Initialize reasoning engine with memory layer
+        reasoning_engine = ReasoningEngine(model, tokenizer, knowledge_layer)
+        
+        # Initialize auto-learning system
+        try:
+            from reasoning_from_scratch.auto_learning import AutoLearningSystem
+            auto_learning_system = AutoLearningSystem(knowledge_layer)
+            print("Auto-learning system initialized!")
+        except ImportError:
+            print("Auto-learning dependencies not available. Install with: pip install wikipedia feedparser beautifulsoup4 aiohttp schedule")
+            auto_learning_system = None
         
         # Add some default knowledge documents
         default_docs = [
@@ -137,7 +159,8 @@ async def health_check():
         "status": "healthy",
         "model_loaded": model is not None,
         "reasoning_engine": reasoning_engine is not None,
-        "knowledge_layer": knowledge_layer is not None
+        "knowledge_layer": knowledge_layer is not None,
+        "auto_learning": auto_learning_system is not None
     }
 
 
@@ -245,6 +268,90 @@ async def end_session():
     if knowledge_layer:
         knowledge_layer.end_session()
     return {"message": "Session ended successfully"}
+
+
+@app.post("/start_learning")
+async def start_auto_learning():
+    """Start the auto-learning process."""
+    if not auto_learning_system:
+        raise HTTPException(status_code=503, detail="Auto-learning system not available")
+    
+    try:
+        result = await auto_learning_system.learn_from_all_sources()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error starting auto-learning: {str(e)}")
+
+
+@app.get("/learning_status")
+async def get_learning_status():
+    """Get auto-learning status."""
+    if not auto_learning_system:
+        return {"status": "not_available"}
+    
+    return auto_learning_system.get_learning_status()
+
+
+@app.post("/learn_from_url")
+async def learn_from_url(request: LearnFromUrlRequest):
+    """Learn from a specific URL."""
+    if not auto_learning_system:
+        raise HTTPException(status_code=503, detail="Auto-learning system not available")
+    
+    try:
+        result = await auto_learning_system.learn_from_url(request.url)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error learning from URL: {str(e)}")
+
+
+@app.post("/add_topic")
+async def add_learning_topic(request: AddTopicRequest):
+    """Add a new topic for auto-learning."""
+    if not auto_learning_system:
+        raise HTTPException(status_code=503, detail="Auto-learning system not available")
+    
+    try:
+        auto_learning_system.add_learning_topic(request.topic)
+        return {"message": f"Added topic '{request.topic}' successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error adding topic: {str(e)}")
+
+
+@app.post("/feedback")
+async def submit_feedback(request: FeedbackRequest):
+    """Submit user feedback for continuous improvement."""
+    if not knowledge_layer:
+        raise HTTPException(status_code=503, detail="Knowledge layer not available")
+    
+    try:
+        knowledge_layer.add_user_feedback(
+            request.question, 
+            request.answer, 
+            request.rating, 
+            request.feedback
+        )
+        return {"message": "Feedback submitted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error submitting feedback: {str(e)}")
+
+
+@app.get("/performance_stats")
+async def get_performance_stats():
+    """Get performance statistics."""
+    if not knowledge_layer:
+        raise HTTPException(status_code=503, detail="Knowledge layer not available")
+    
+    try:
+        stats = knowledge_layer.get_performance_stats()
+        
+        # Add reasoning engine stats
+        if reasoning_engine:
+            stats["method_usage"] = reasoning_engine.method_usage_stats
+        
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting performance stats: {str(e)}")
 
 
 @app.get("/methods")

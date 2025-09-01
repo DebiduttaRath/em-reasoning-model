@@ -248,6 +248,14 @@ class KnowledgeMemoryLayer:
         self.session_memory = SessionMemory()
         self.document_retriever = DocumentRetriever()
         
+        # Performance tracking for auto-learning
+        self.performance_stats = {
+            "method_performance": {},
+            "topic_performance": {},
+            "user_feedback": [],
+            "improvement_suggestions": []
+        }
+        
         # Load existing data
         self._load_state()
     
@@ -310,6 +318,133 @@ class KnowledgeMemoryLayer:
         # Save document index
         index_file = self.memory_dir / "document_index.pkl"
         self.document_retriever.save_index(str(index_file))
+        
+        # Save performance stats
+        perf_file = self.memory_dir / "performance_stats.json"
+        try:
+            with open(perf_file, 'w') as f:
+                json.dump(self.performance_stats, f, indent=2)
+        except Exception as e:
+            print(f"Warning: Could not save performance stats: {e}")
+    
+    def track_performance(self, method: str, question: str, success: bool, confidence: float):
+        """Track performance of reasoning methods for auto-improvement."""
+        if method not in self.performance_stats["method_performance"]:
+            self.performance_stats["method_performance"][method] = {
+                "total_attempts": 0,
+                "successful_attempts": 0,
+                "average_confidence": 0.0,
+                "success_rate": 0.0
+            }
+        
+        stats = self.performance_stats["method_performance"][method]
+        stats["total_attempts"] += 1
+        if success:
+            stats["successful_attempts"] += 1
+        
+        # Update running average of confidence
+        total_confidence = stats["average_confidence"] * (stats["total_attempts"] - 1) + confidence
+        stats["average_confidence"] = total_confidence / stats["total_attempts"]
+        stats["success_rate"] = stats["successful_attempts"] / stats["total_attempts"]
+        
+        # Track topic performance
+        question_words = question.lower().split()
+        topics = ["math", "science", "programming", "logic", "general"]
+        
+        for topic in topics:
+            if topic in question_words or any(topic in word for word in question_words):
+                if topic not in self.performance_stats["topic_performance"]:
+                    self.performance_stats["topic_performance"][topic] = {
+                        "attempts": 0, "successes": 0, "rate": 0.0
+                    }
+                
+                topic_stats = self.performance_stats["topic_performance"][topic]
+                topic_stats["attempts"] += 1
+                if success:
+                    topic_stats["successes"] += 1
+                topic_stats["rate"] = topic_stats["successes"] / topic_stats["attempts"]
+                break
+    
+    def add_user_feedback(self, question: str, answer: str, rating: int, feedback: str = ""):
+        """Add user feedback for continuous improvement."""
+        feedback_entry = {
+            "timestamp": self._get_timestamp(),
+            "question": question,
+            "answer": answer,
+            "rating": rating,
+            "feedback": feedback,
+            "success": rating >= 3  # Consider 3+ as successful
+        }
+        
+        self.performance_stats["user_feedback"].append(feedback_entry)
+        
+        # Keep only last 1000 feedback entries
+        if len(self.performance_stats["user_feedback"]) > 1000:
+            self.performance_stats["user_feedback"] = self.performance_stats["user_feedback"][-1000:]
+        
+        # Generate improvement suggestions based on feedback
+        if rating < 3:
+            suggestion = f"Low rating ({rating}/5) for question type: {self._categorize_question(question)}"
+            self.performance_stats["improvement_suggestions"].append({
+                "timestamp": self._get_timestamp(),
+                "suggestion": suggestion,
+                "question_category": self._categorize_question(question)
+            })
+    
+    def get_best_method_for_question(self, question: str) -> str:
+        """Get the best performing method for a given question type."""
+        question_category = self._categorize_question(question)
+        
+        # Check method performance for this category
+        best_method = "auto"
+        best_score = 0.0
+        
+        for method, stats in self.performance_stats["method_performance"].items():
+            if stats["total_attempts"] >= 3:  # Minimum attempts for reliability
+                # Combine success rate and confidence
+                score = (stats["success_rate"] * 0.7) + (stats["average_confidence"] * 0.3)
+                if score > best_score:
+                    best_score = score
+                    best_method = method
+        
+        return best_method
+    
+    def get_performance_stats(self) -> Dict[str, Any]:
+        """Get comprehensive performance statistics."""
+        stats = self.performance_stats.copy()
+        
+        # Calculate overall stats
+        total_feedback = len(stats["user_feedback"])
+        positive_feedback = sum(1 for f in stats["user_feedback"] if f["rating"] >= 3)
+        
+        stats["overall"] = {
+            "total_feedback": total_feedback,
+            "positive_feedback": positive_feedback,
+            "satisfaction_rate": positive_feedback / total_feedback if total_feedback > 0 else 0.0,
+            "average_rating": sum(f["rating"] for f in stats["user_feedback"]) / total_feedback if total_feedback > 0 else 0.0
+        }
+        
+        return stats
+    
+    def _categorize_question(self, question: str) -> str:
+        """Categorize questions for performance tracking."""
+        question_lower = question.lower()
+        
+        if any(word in question_lower for word in ["calculate", "compute", "math", "+", "-", "*", "/"]):
+            return "mathematical"
+        elif any(word in question_lower for word in ["code", "program", "function", "algorithm"]):
+            return "programming"
+        elif any(word in question_lower for word in ["plan", "strategy", "approach", "design"]):
+            return "planning"
+        elif any(word in question_lower for word in ["what", "who", "when", "where", "which"]):
+            return "factual"
+        else:
+            return "general"
+    
+    def _get_timestamp(self) -> str:
+        """Get current timestamp."""
+        import datetime
+        return datetime.datetime.now().isoformat()
     
     def _load_state(self):
         """Load saved state from disk."""
@@ -322,3 +457,12 @@ class KnowledgeMemoryLayer:
         index_file = self.memory_dir / "document_index.pkl"
         if index_file.exists():
             self.document_retriever.load_index(str(index_file))
+        
+        # Load performance stats
+        perf_file = self.memory_dir / "performance_stats.json"
+        if perf_file.exists():
+            try:
+                with open(perf_file, 'r') as f:
+                    self.performance_stats.update(json.load(f))
+            except Exception as e:
+                print(f"Warning: Could not load performance stats: {e}")
