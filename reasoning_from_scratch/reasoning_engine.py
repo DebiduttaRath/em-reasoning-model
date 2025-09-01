@@ -321,192 +321,6 @@ class MetaReasoningLayer:
         """Analyze causal relationships in reasoning."""
         return {"causal_strength": 0.75, "causal_chains": []}
 
-
-class HyperReasoningEngine(ReasoningEngine):
-    """World-class reasoning engine with advanced capabilities."""
-    
-    def __init__(self, model, tokenizer, memory_layer=None):
-        super().__init__(model, tokenizer, memory_layer)
-        
-        # Advanced reasoning components
-        self.meta_reasoning = MetaReasoningLayer()
-        self.reasoning_quality_threshold = 0.9
-        self.multi_modal_processor = MultiModalProcessor()
-        self.uncertainty_quantifier = UncertaintyQuantifier()
-        self.reasoning_explainer = ReasoningExplainer()
-        
-        # Enhanced method tracking
-        self.method_usage_stats = {
-            "cot": 0, "pal": 0, "self_consistency": 0, "tot": 0,
-            "meta_reasoning": 0, "hybrid": 0, "recursive": 0
-        }
-        
-        # World-class reasoning metrics
-        self.reasoning_metrics = {
-            "accuracy": 0.0,
-            "explainability": 0.0,
-            "robustness": 0.0,
-            "efficiency": 0.0,
-            "innovation": 0.0
-        }
-
-
-class MultiModalProcessor:
-    """Process multiple types of input for comprehensive reasoning."""
-    
-    def __init__(self):
-        self.supported_modalities = ["text", "code", "mathematical", "logical", "visual_description"]
-    
-    def process_input(self, input_data: str, modality: str = "auto") -> Dict[str, Any]:
-        """Process input based on detected or specified modality."""
-        if modality == "auto":
-            modality = self._detect_modality(input_data)
-        
-        processors = {
-            "mathematical": self._process_mathematical,
-            "code": self._process_code,
-            "logical": self._process_logical,
-            "visual_description": self._process_visual
-        }
-        
-        return processors.get(modality, self._process_text)(input_data)
-    
-    def _detect_modality(self, input_data: str) -> str:
-        """Detect the primary modality of input data."""
-        if re.search(r'[+\-*/=()∑∫√]', input_data):
-            return "mathematical"
-        elif any(keyword in input_data.lower() for keyword in ["def ", "class ", "import ", "function"]):
-            return "code"
-        elif any(keyword in input_data.lower() for keyword in ["if", "then", "therefore", "implies"]):
-            return "logical"
-        return "text"
-    
-    def _process_mathematical(self, input_data: str) -> Dict[str, Any]:
-        return {"modality": "mathematical", "complexity": "high", "requires_computation": True}
-    
-    def _process_code(self, input_data: str) -> Dict[str, Any]:
-        return {"modality": "code", "complexity": "high", "requires_execution": True}
-    
-    def _process_logical(self, input_data: str) -> Dict[str, Any]:
-        return {"modality": "logical", "complexity": "medium", "requires_formal_logic": True}
-    
-    def _process_visual(self, input_data: str) -> Dict[str, Any]:
-        return {"modality": "visual", "complexity": "high", "requires_spatial_reasoning": True}
-    
-    def _process_text(self, input_data: str) -> Dict[str, Any]:
-        return {"modality": "text", "complexity": "medium", "requires_nlp": True}
-
-
-class UncertaintyQuantifier:
-    """Quantify and communicate reasoning uncertainty."""
-    
-    def __init__(self):
-        self.confidence_calibration = {}
-    
-    def quantify_uncertainty(self, reasoning: str, evidence_strength: float) -> Dict[str, Any]:
-        """Calculate comprehensive uncertainty metrics."""
-        base_confidence = evidence_strength
-        
-        # Analyze reasoning quality indicators
-        quality_indicators = self._analyze_reasoning_quality(reasoning)
-        
-        # Calculate epistemic uncertainty (model uncertainty)
-        epistemic_uncertainty = 1.0 - quality_indicators["logical_consistency"]
-        
-        # Calculate aleatoric uncertainty (data uncertainty)
-        aleatoric_uncertainty = 1.0 - quality_indicators["evidence_strength"]
-        
-        # Combined uncertainty
-        total_uncertainty = (epistemic_uncertainty + aleatoric_uncertainty) / 2
-        calibrated_confidence = max(0.1, 1.0 - total_uncertainty)
-        
-        return {
-            "confidence": calibrated_confidence,
-            "epistemic_uncertainty": epistemic_uncertainty,
-            "aleatoric_uncertainty": aleatoric_uncertainty,
-            "total_uncertainty": total_uncertainty,
-            "uncertainty_explanation": self._explain_uncertainty(epistemic_uncertainty, aleatoric_uncertainty)
-        }
-    
-    def _analyze_reasoning_quality(self, reasoning: str) -> Dict[str, float]:
-        """Analyze multiple dimensions of reasoning quality."""
-        text_lower = reasoning.lower()
-        
-        # Logical consistency indicators
-        logical_words = sum(1 for word in ["because", "therefore", "since", "thus", "hence"] if word in text_lower)
-        logical_consistency = min(1.0, logical_words / 3.0)
-        
-        # Evidence strength indicators
-        evidence_words = sum(1 for word in ["evidence", "data", "studies", "research", "proven"] if word in text_lower)
-        evidence_strength = min(1.0, evidence_words / 2.0)
-        
-        # Reasoning depth
-        step_count = len([line for line in reasoning.split('\n') if line.strip()])
-        reasoning_depth = min(1.0, step_count / 5.0)
-        
-        return {
-            "logical_consistency": logical_consistency,
-            "evidence_strength": evidence_strength,
-            "reasoning_depth": reasoning_depth
-        }
-    
-    def _explain_uncertainty(self, epistemic: float, aleatoric: float) -> str:
-        """Generate human-readable uncertainty explanation."""
-        if epistemic > 0.7:
-            return "High model uncertainty - the reasoning approach may need refinement"
-        elif aleatoric > 0.7:
-            return "High data uncertainty - more evidence may be needed"
-        elif epistemic > 0.4 or aleatoric > 0.4:
-            return "Moderate uncertainty - reasoning is reasonable but could be stronger"
-        else:
-            return "Low uncertainty - high confidence in reasoning quality"
-
-
-class ReasoningExplainer:
-    """Generate human-readable explanations of reasoning processes."""
-    
-    def __init__(self):
-        self.explanation_templates = {
-            "cot": "I used step-by-step reasoning to break down the problem systematically.",
-            "pal": "I solved this by writing and executing code to compute the answer.",
-            "tot": "I explored multiple reasoning paths and selected the best approach.",
-            "self_consistency": "I generated multiple solutions and chose the most consistent answer.",
-            "meta_reasoning": "I used recursive self-verification to ensure reasoning quality."
-        }
-    
-    def explain_reasoning_process(self, method: str, steps: List[str], confidence: float) -> str:
-        """Generate comprehensive explanation of reasoning process."""
-        base_explanation = self.explanation_templates.get(method, "I used advanced reasoning techniques.")
-        
-        process_explanation = f"{base_explanation}\n\n"
-        process_explanation += f"Reasoning Process ({len(steps)} steps):\n"
-        
-        for i, step in enumerate(steps[:3], 1):  # Show first 3 steps
-            summary = step[:100] + "..." if len(step) > 100 else step
-            process_explanation += f"{i}. {summary}\n"
-        
-        if len(steps) > 3:
-            process_explanation += f"... and {len(steps) - 3} more detailed steps.\n"
-        
-        confidence_desc = self._describe_confidence(confidence)
-        process_explanation += f"\nConfidence Assessment: {confidence_desc}"
-        
-        return process_explanation
-    
-    def _describe_confidence(self, confidence: float) -> str:
-        """Convert confidence score to human-readable description."""
-        if confidence >= 0.9:
-            return f"Very high confidence ({int(confidence*100)}%) - reasoning is robust and well-supported"
-        elif confidence >= 0.8:
-            return f"High confidence ({int(confidence*100)}%) - reasoning is solid with good evidence"
-        elif confidence >= 0.7:
-            return f"Good confidence ({int(confidence*100)}%) - reasoning is reasonable but could be stronger"
-        elif confidence >= 0.6:
-            return f"Moderate confidence ({int(confidence*100)}%) - some uncertainty in reasoning"
-        else:
-            return f"Low confidence ({int(confidence*100)}%) - significant uncertainty, approach with caution"
-
-
 class ReasoningEngine:
     """World-class reasoning engine coordinating all advanced components."""
     
@@ -959,3 +773,187 @@ Improved reasoning:"""
             if line.strip():
                 return line.strip()
         return reasoning.strip()
+
+class HyperReasoningEngine(ReasoningEngine):
+    """World-class reasoning engine with advanced capabilities."""
+    
+    def __init__(self, model, tokenizer, memory_layer=None):
+        super().__init__(model, tokenizer, memory_layer)
+        
+        # Advanced reasoning components
+        self.meta_reasoning = MetaReasoningLayer()
+        self.reasoning_quality_threshold = 0.9
+        self.multi_modal_processor = MultiModalProcessor()
+        self.uncertainty_quantifier = UncertaintyQuantifier()
+        self.reasoning_explainer = ReasoningExplainer()
+        
+        # Enhanced method tracking
+        self.method_usage_stats = {
+            "cot": 0, "pal": 0, "self_consistency": 0, "tot": 0,
+            "meta_reasoning": 0, "hybrid": 0, "recursive": 0
+        }
+        
+        # World-class reasoning metrics
+        self.reasoning_metrics = {
+            "accuracy": 0.0,
+            "explainability": 0.0,
+            "robustness": 0.0,
+            "efficiency": 0.0,
+            "innovation": 0.0
+        }
+
+
+class MultiModalProcessor:
+    """Process multiple types of input for comprehensive reasoning."""
+    
+    def __init__(self):
+        self.supported_modalities = ["text", "code", "mathematical", "logical", "visual_description"]
+    
+    def process_input(self, input_data: str, modality: str = "auto") -> Dict[str, Any]:
+        """Process input based on detected or specified modality."""
+        if modality == "auto":
+            modality = self._detect_modality(input_data)
+        
+        processors = {
+            "mathematical": self._process_mathematical,
+            "code": self._process_code,
+            "logical": self._process_logical,
+            "visual_description": self._process_visual
+        }
+        
+        return processors.get(modality, self._process_text)(input_data)
+    
+    def _detect_modality(self, input_data: str) -> str:
+        """Detect the primary modality of input data."""
+        if re.search(r'[+\-*/=()∑∫√]', input_data):
+            return "mathematical"
+        elif any(keyword in input_data.lower() for keyword in ["def ", "class ", "import ", "function"]):
+            return "code"
+        elif any(keyword in input_data.lower() for keyword in ["if", "then", "therefore", "implies"]):
+            return "logical"
+        return "text"
+    
+    def _process_mathematical(self, input_data: str) -> Dict[str, Any]:
+        return {"modality": "mathematical", "complexity": "high", "requires_computation": True}
+    
+    def _process_code(self, input_data: str) -> Dict[str, Any]:
+        return {"modality": "code", "complexity": "high", "requires_execution": True}
+    
+    def _process_logical(self, input_data: str) -> Dict[str, Any]:
+        return {"modality": "logical", "complexity": "medium", "requires_formal_logic": True}
+    
+    def _process_visual(self, input_data: str) -> Dict[str, Any]:
+        return {"modality": "visual", "complexity": "high", "requires_spatial_reasoning": True}
+    
+    def _process_text(self, input_data: str) -> Dict[str, Any]:
+        return {"modality": "text", "complexity": "medium", "requires_nlp": True}
+
+
+class UncertaintyQuantifier:
+    """Quantify and communicate reasoning uncertainty."""
+    
+    def __init__(self):
+        self.confidence_calibration = {}
+    
+    def quantify_uncertainty(self, reasoning: str, evidence_strength: float) -> Dict[str, Any]:
+        """Calculate comprehensive uncertainty metrics."""
+        base_confidence = evidence_strength
+        
+        # Analyze reasoning quality indicators
+        quality_indicators = self._analyze_reasoning_quality(reasoning)
+        
+        # Calculate epistemic uncertainty (model uncertainty)
+        epistemic_uncertainty = 1.0 - quality_indicators["logical_consistency"]
+        
+        # Calculate aleatoric uncertainty (data uncertainty)
+        aleatoric_uncertainty = 1.0 - quality_indicators["evidence_strength"]
+        
+        # Combined uncertainty
+        total_uncertainty = (epistemic_uncertainty + aleatoric_uncertainty) / 2
+        calibrated_confidence = max(0.1, 1.0 - total_uncertainty)
+        
+        return {
+            "confidence": calibrated_confidence,
+            "epistemic_uncertainty": epistemic_uncertainty,
+            "aleatoric_uncertainty": aleatoric_uncertainty,
+            "total_uncertainty": total_uncertainty,
+            "uncertainty_explanation": self._explain_uncertainty(epistemic_uncertainty, aleatoric_uncertainty)
+        }
+    
+    def _analyze_reasoning_quality(self, reasoning: str) -> Dict[str, float]:
+        """Analyze multiple dimensions of reasoning quality."""
+        text_lower = reasoning.lower()
+        
+        # Logical consistency indicators
+        logical_words = sum(1 for word in ["because", "therefore", "since", "thus", "hence"] if word in text_lower)
+        logical_consistency = min(1.0, logical_words / 3.0)
+        
+        # Evidence strength indicators
+        evidence_words = sum(1 for word in ["evidence", "data", "studies", "research", "proven"] if word in text_lower)
+        evidence_strength = min(1.0, evidence_words / 2.0)
+        
+        # Reasoning depth
+        step_count = len([line for line in reasoning.split('\n') if line.strip()])
+        reasoning_depth = min(1.0, step_count / 5.0)
+        
+        return {
+            "logical_consistency": logical_consistency,
+            "evidence_strength": evidence_strength,
+            "reasoning_depth": reasoning_depth
+        }
+    
+    def _explain_uncertainty(self, epistemic: float, aleatoric: float) -> str:
+        """Generate human-readable uncertainty explanation."""
+        if epistemic > 0.7:
+            return "High model uncertainty - the reasoning approach may need refinement"
+        elif aleatoric > 0.7:
+            return "High data uncertainty - more evidence may be needed"
+        elif epistemic > 0.4 or aleatoric > 0.4:
+            return "Moderate uncertainty - reasoning is reasonable but could be stronger"
+        else:
+            return "Low uncertainty - high confidence in reasoning quality"
+
+
+class ReasoningExplainer:
+    """Generate human-readable explanations of reasoning processes."""
+    
+    def __init__(self):
+        self.explanation_templates = {
+            "cot": "I used step-by-step reasoning to break down the problem systematically.",
+            "pal": "I solved this by writing and executing code to compute the answer.",
+            "tot": "I explored multiple reasoning paths and selected the best approach.",
+            "self_consistency": "I generated multiple solutions and chose the most consistent answer.",
+            "meta_reasoning": "I used recursive self-verification to ensure reasoning quality."
+        }
+    
+    def explain_reasoning_process(self, method: str, steps: List[str], confidence: float) -> str:
+        """Generate comprehensive explanation of reasoning process."""
+        base_explanation = self.explanation_templates.get(method, "I used advanced reasoning techniques.")
+        
+        process_explanation = f"{base_explanation}\n\n"
+        process_explanation += f"Reasoning Process ({len(steps)} steps):\n"
+        
+        for i, step in enumerate(steps[:3], 1):  # Show first 3 steps
+            summary = step[:100] + "..." if len(step) > 100 else step
+            process_explanation += f"{i}. {summary}\n"
+        
+        if len(steps) > 3:
+            process_explanation += f"... and {len(steps) - 3} more detailed steps.\n"
+        
+        confidence_desc = self._describe_confidence(confidence)
+        process_explanation += f"\nConfidence Assessment: {confidence_desc}"
+        
+        return process_explanation
+    
+    def _describe_confidence(self, confidence: float) -> str:
+        """Convert confidence score to human-readable description."""
+        if confidence >= 0.9:
+            return f"Very high confidence ({int(confidence*100)}%) - reasoning is robust and well-supported"
+        elif confidence >= 0.8:
+            return f"High confidence ({int(confidence*100)}%) - reasoning is solid with good evidence"
+        elif confidence >= 0.7:
+            return f"Good confidence ({int(confidence*100)}%) - reasoning is reasonable but could be stronger"
+        elif confidence >= 0.6:
+            return f"Moderate confidence ({int(confidence*100)}%) - some uncertainty in reasoning"
+        else:
+            return f"Low confidence ({int(confidence*100)}%) - significant uncertainty, approach with caution"
