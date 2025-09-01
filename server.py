@@ -126,7 +126,7 @@ async def startup_event():
     
     try:
         # Try to load existing model
-        download_qwen3_small(kind="base", out_dir=model_dir)
+        # download_qwen3_small(kind="base", out_dir=model_dir)
         
         # Initialize model and tokenizer
         model = Qwen3Model(QWEN_CONFIG_06_B)
