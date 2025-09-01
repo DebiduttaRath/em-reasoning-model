@@ -122,7 +122,7 @@ async def startup_event():
     
     # Download and load model
     print("Loading Qwen3 model...")
-    model_dir = "models"
+    model_dir = "models/tokenizer.json"
     
     try:
         # Try to load existing model
