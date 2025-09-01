@@ -603,73 +603,75 @@ Improved reasoning:"""
         return suggestions
     
     def _detect_best_method(self, question: str, input_analysis: Dict[str, Any] = None) -> str:
-        """Enhanced method detection using multi-modal analysis."""
+        """Automatically detect the best reasoning method for the question, with optional input analysis."""
+        # If we have a memory layer with performance tracking, try it first
         if hasattr(self, 'memory_layer') and self.memory_layer:
             try:
                 adaptive_method = self.memory_layer.get_best_method_for_question(question)
                 if adaptive_method != "auto":
                     return adaptive_method
-            except:
-                pass
-        
+            except Exception:
+                pass  # Fall back to heuristics
+
         question_lower = question.lower()
-        
-        # Advanced method selection based on input analysis
+
+        # Use input_analysis if available
         if input_analysis:
             modality = input_analysis.get("modality", "text")
             complexity = input_analysis.get("complexity", "medium")
-            
+
             if modality == "mathematical" or complexity == "high":
-                return "hybrid"  # Use multiple methods for complex problems
-            elif modality == "code":
+                return "hybrid"
+            if modality == "code":
                 return "pal"
-            elif "requires_formal_logic" in input_analysis:
+            if input_analysis.get("requires_formal_logic"):
                 return "tot"
-        
-        # Enhanced heuristics
+
+        # Heuristic rules
         if any(word in question_lower for word in ["calculate", "compute", "math", "equation", "solve"]):
             if re.search(r'\d+', question):
                 return "pal"
-        
-        if any(word in question_lower for word in ["plan", "strategy", "design", "approach", "complex"]):
-            return "tot"
-        
-        if any(word in question_lower for word in ["compare", "evaluate", "assess", "analyze"]):
-            return "self_consistency"
-        
-        # For complex questions, use hybrid approach
-        if len(question.split()) > 20:
-            return "hybrid"
-        
-        return "cot"
-    
-    def _detect_best_method(self, question: str, method=None) -> str:
-        """Automatically detect the best reasoning method for the question."""
-        # If we have a memory layer with performance tracking, use it
-        if hasattr(self, 'memory_layer') and self.memory_layer:
-            try:
-                adaptive_method = self.memory_layer.get_best_method_for_question(question)
-                if adaptive_method != "auto":
-                    return adaptive_method
-            except:
-                pass  # Fall back to heuristic method
-        
-        question_lower = question.lower()
-        
-        # Use PAL for mathematical/computational problems
-        if any(word in question_lower for word in ["calculate", "compute", "math", "equation", "solve"]):
-            if re.search(r'\d+', question):
-                return "pal"
-        
-        # Use ToT for complex planning problems
+
         if any(word in question_lower for word in ["plan", "strategy", "design", "approach"]):
             return "tot"
-        
-        # Use self-consistency for factual questions
+
         if any(word in question_lower for word in ["what", "who", "when", "where", "which"]):
             return "self_consistency"
-        
+
+        # For long/complex questions
+        if len(question.split()) > 20:
+            return "hybrid"
+
         return "cot"  # Default
+
+    
+    # def _detect_best_method(self, question: str, method=None) -> str:
+    #     """Automatically detect the best reasoning method for the question."""
+    #     # If we have a memory layer with performance tracking, use it
+    #     if hasattr(self, 'memory_layer') and self.memory_layer:
+    #         try:
+    #             adaptive_method = self.memory_layer.get_best_method_for_question(question)
+    #             if adaptive_method != "auto":
+    #                 return adaptive_method
+    #         except:
+    #             pass  # Fall back to heuristic method
+        
+    #     question_lower = question.lower()
+        
+    #     # Use PAL for mathematical/computational problems
+    #     if any(word in question_lower for word in ["calculate", "compute", "math", "equation", "solve"]):
+    #         if re.search(r'\d+', question):
+    #             return "pal"
+        
+    #     # Use ToT for complex planning problems
+    #     if any(word in question_lower for word in ["plan", "strategy", "design", "approach"]):
+    #         return "tot"
+        
+    #     # Use self-consistency for factual questions
+    #     if any(word in question_lower for word in ["what", "who", "when", "where", "which"]):
+    #         return "self_consistency"
+        
+    #     return "cot"  # Default
     
     def _solve_with_cot(self, question: str, domain_prompt: str = "") -> Dict[str, Any]:
         """Solve using chain-of-thought reasoning."""
