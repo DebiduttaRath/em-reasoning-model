@@ -271,150 +271,121 @@ class SessionMemory:
 
 
 class DocumentRetriever:
-    """RAG-based document retriever using embeddings and FAISS."""
-    
-    def __init__(self, embedding_dim: int = 384):
+    """Optimized RAG-based document retriever with FAISS + persistence."""
+
+    def __init__(self, embedding_dim: int = 384, batch_size: int = 32, use_gpu: bool = True):
         self.embedding_dim = embedding_dim
-        self.documents = []
-        self.embeddings = []
+        self.batch_size = batch_size
+        self.documents: List[str] = []
+        self.embeddings: np.ndarray = None
         self.index = None
+        self.use_gpu = use_gpu
+
         self._setup_embedder()
-    
+
     def _setup_embedder(self):
         """Setup the sentence embedder."""
         try:
             from sentence_transformers import SentenceTransformer
-            self.embedder = SentenceTransformer("all-MiniLM-L6-v2")
+            import torch
+            device = "cuda" if self.use_gpu and torch.cuda.is_available() else "cpu"
+            self.embedder = SentenceTransformer("all-MiniLM-L6-v2", device=device)
         except ImportError:
-            print("Warning: sentence-transformers not installed. Using dummy embedder.")
+            print("⚠️ sentence-transformers not installed. Using dummy embedder.")
             self.embedder = None
-    
-    def add_documents(self, docs: List[str]):
-        """Add documents to the retriever."""
+
+    def _encode_batch(self, docs: List[str]) -> np.ndarray:
+        """Efficient batch encoding."""
         if not self.embedder:
-            print("No embedder available. Documents added but not indexed.")
-            self.documents.extend(docs)
+            return np.zeros((len(docs), self.embedding_dim))
+
+        embeddings = []
+        for i in range(0, len(docs), self.batch_size):
+            batch = docs[i:i + self.batch_size]
+            emb = self.embedder.encode(batch, show_progress_bar=False, convert_to_numpy=True)
+            embeddings.append(emb)
+        return np.vstack(embeddings)
+
+    def add_documents(self, docs: List[str]):
+        """Add new documents and update FAISS index incrementally."""
+        if not docs:
             return
-        
-        # Generate embeddings
-        new_embeddings = self.embedder.encode(docs)
-        
-        self.documents.extend(docs)
-        if len(self.embeddings) == 0:
+
+        new_embeddings = self._encode_batch(docs)
+
+        if self.embeddings is None or len(self.embeddings) == 0:
             self.embeddings = new_embeddings
         else:
             self.embeddings = np.vstack([self.embeddings, new_embeddings])
-        
-        self._build_index()
-    
-    def _build_index(self):
-        """Build FAISS index for fast similarity search."""
+
+        self.documents.extend(docs)
+        self._update_index(new_embeddings)
+
+    def _update_index(self, new_embeddings: np.ndarray):
+        """Update FAISS index incrementally instead of rebuilding each time."""
         try:
             import faiss
-            self.index = faiss.IndexFlatL2(self.embedding_dim)
-            self.index.add(np.array(self.embeddings).astype('float32'))
+            if self.index is None:
+                self.index = faiss.IndexFlatL2(self.embedding_dim)
+                if self.use_gpu and faiss.get_num_gpus() > 0:
+                    self.index = faiss.index_cpu_to_all_gpus(self.index)
+                self.index.add(self.embeddings.astype('float32'))
+            else:
+                self.index.add(new_embeddings.astype("float32"))
         except ImportError:
-            print("Warning: FAISS not installed. Using linear search.")
+            print("⚠️ FAISS not installed. Falling back to linear search.")
             self.index = None
-    
+
     def retrieve(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
-        """Retrieve top-k most relevant documents for the query."""
+        """Retrieve top-k most relevant documents."""
         if not self.documents:
             return []
-        
-        if not self.embedder:
-            # Fallback to simple keyword matching
-            return self._keyword_retrieve(query, k)
-        
-        # Generate query embedding
-        query_embedding = self.embedder.encode([query])
-        
+
+        query_emb = self._encode_batch([query])
+
         if self.index:
-            # Use FAISS for fast search
-            distances, indices = self.index.search(
-                np.array(query_embedding).astype('float32'), 
-                min(k, len(self.documents))
-            )
-            
-            results = []
-            for i, (dist, idx) in enumerate(zip(distances[0], indices[0])):
-                if idx < len(self.documents):
-                    results.append({
-                        "document": self.documents[idx],
-                        "score": float(1.0 / (1.0 + dist)),  # Convert distance to similarity
-                        "rank": i + 1
-                    })
-            return results
-        else:
-            # Linear search fallback
-            similarities = []
-            query_emb = query_embedding[0]
-            
-            for i, doc_emb in enumerate(self.embeddings):
-                # Cosine similarity
-                dot_product = np.dot(query_emb, doc_emb)
-                norm_product = np.linalg.norm(query_emb) * np.linalg.norm(doc_emb)
-                similarity = dot_product / norm_product if norm_product > 0 else 0
-                similarities.append((similarity, i))
-            
-            # Sort by similarity
-            similarities.sort(reverse=True)
-            
-            results = []
-            for rank, (sim, idx) in enumerate(similarities[:k]):
-                results.append({
-                    "document": self.documents[idx],
-                    "score": float(sim),
-                    "rank": rank + 1
-                })
-            
-            return results
-    
-    def _keyword_retrieve(self, query: str, k: int) -> List[Dict[str, Any]]:
-        """Fallback keyword-based retrieval."""
-        query_words = set(query.lower().split())
-        
-        scored_docs = []
-        for i, doc in enumerate(self.documents):
-            doc_words = set(doc.lower().split())
-            overlap = len(query_words & doc_words)
-            scored_docs.append((overlap, i, doc))
-        
-        scored_docs.sort(reverse=True)
-        
-        results = []
-        for rank, (score, idx, doc) in enumerate(scored_docs[:k]):
-            results.append({
-                "document": doc,
-                "score": score / max(len(query_words), 1),
-                "rank": rank + 1
-            })
-        
-        return results
-    
+            distances, indices = self.index.search(query_emb.astype("float32"), min(k, len(self.documents)))
+            return [
+                {"document": self.documents[idx], "score": float(1 / (1 + dist)), "rank": i + 1}
+                for i, (dist, idx) in enumerate(zip(distances[0], indices[0]))
+                if idx < len(self.documents)
+            ]
+
+        # Linear cosine fallback
+        sims = []
+        for i, doc_emb in enumerate(self.embeddings):
+            dot = np.dot(query_emb[0], doc_emb)
+            norm = np.linalg.norm(query_emb[0]) * np.linalg.norm(doc_emb)
+            sims.append((dot / norm if norm > 0 else 0, i))
+
+        sims.sort(reverse=True)
+        return [
+            {"document": self.documents[idx], "score": float(sim), "rank": rank + 1}
+            for rank, (sim, idx) in enumerate(sims[:k])
+        ]
+
     def save_index(self, filepath: str):
-        """Save the retriever state to files."""
+        """Persist retriever state (docs + embeddings)."""
         data = {
             "documents": self.documents,
-            "embeddings": self.embeddings.tolist() if len(self.embeddings) > 0 else []
+            "embeddings": self.embeddings.tolist() if self.embeddings is not None else []
         }
-        
-        with open(filepath, 'wb') as f:
+        with open(filepath, "wb") as f:
             pickle.dump(data, f)
-    
+
     def load_index(self, filepath: str):
-        """Load the retriever state from files."""
+        """Load retriever state (docs + embeddings)."""
         try:
-            with open(filepath, 'rb') as f:
+            with open(filepath, "rb") as f:
                 data = pickle.load(f)
-            
-            self.documents = data["documents"]
-            self.embeddings = np.array(data["embeddings"]) if data["embeddings"] else np.array([])
-            
-            if len(self.embeddings) > 0:
-                self._build_index()
+
+            self.documents = data.get("documents", [])
+            self.embeddings = np.array(data.get("embeddings", [])) if data.get("embeddings") else None
+
+            if self.embeddings is not None and len(self.embeddings) > 0:
+                self._update_index(self.embeddings)
         except FileNotFoundError:
-            pass
+            print(f"⚠️ No saved index found at {filepath}, starting fresh.")
 
 
 class KnowledgeMemoryLayer:
