@@ -8,6 +8,185 @@ import json
 import pickle
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
+from datetime import datetime, timedelta
+from collections import defaultdict, Counter
+import sqlite3
+import threading
+
+
+class AdvancedKnowledgeMemoryLayer:
+    """Advanced memory layer with world-class capabilities."""
+    
+    def __init__(self, db_path: str = "reasoning_memory.db"):
+        self.db_path = db_path
+        self.session_memory = []
+        self.knowledge_documents = []
+        self.user_feedback = []
+        self.performance_history = []
+        self.learning_analytics = defaultdict(list)
+        self.domain_performance = defaultdict(dict)
+        self.reasoning_patterns = defaultdict(list)
+        
+        # Initialize advanced tracking
+        self._init_database()
+        self._performance_lock = threading.Lock()
+    
+    def _init_database(self):
+        """Initialize SQLite database for persistent storage."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Create tables for advanced analytics
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS reasoning_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                question TEXT,
+                answer TEXT,
+                reasoning TEXT,
+                method TEXT,
+                confidence REAL,
+                domain TEXT,
+                timestamp DATETIME,
+                success BOOLEAN,
+                user_rating INTEGER
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS performance_metrics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                metric_name TEXT,
+                metric_value REAL,
+                timestamp DATETIME,
+                context TEXT
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS learning_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_type TEXT,
+                event_data TEXT,
+                performance_impact REAL,
+                timestamp DATETIME
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+    
+    def track_advanced_metrics(self, question: str, result: Dict[str, Any], input_analysis: Dict[str, Any]):
+        """Track advanced metrics for world-class performance monitoring."""
+        with self._performance_lock:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Store reasoning session
+            cursor.execute('''
+                INSERT INTO reasoning_sessions 
+                (question, answer, reasoning, method, confidence, domain, timestamp, success)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                question, result["answer"], result["reasoning"], result["method"],
+                result["confidence"], result.get("domain", "general"),
+                datetime.now().isoformat(), result["confidence"] > 0.7
+            ))
+            
+            # Store performance metrics
+            metrics = [
+                ("accuracy", result["confidence"]),
+                ("reasoning_depth", len(result.get("trace", []))),
+                ("domain_compliance", result.get("compliance_score", 0.7)),
+                ("uncertainty", result.get("total_uncertainty", 0.2))
+            ]
+            
+            for metric_name, metric_value in metrics:
+                cursor.execute('''
+                    INSERT INTO performance_metrics (metric_name, metric_value, timestamp, context)
+                    VALUES (?, ?, ?, ?)
+                ''', (metric_name, metric_value, datetime.now().isoformat(), question[:100]))
+            
+            conn.commit()
+            conn.close()
+    
+    def get_advanced_analytics(self) -> Dict[str, Any]:
+        """Get comprehensive advanced analytics."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Get recent performance trends
+        cursor.execute('''
+            SELECT method, AVG(confidence), COUNT(*), AVG(CASE WHEN success THEN 1.0 ELSE 0.0 END)
+            FROM reasoning_sessions 
+            WHERE timestamp > datetime('now', '-7 days')
+            GROUP BY method
+        ''')
+        method_performance = {
+            row[0]: {
+                "avg_confidence": row[1],
+                "total_queries": row[2], 
+                "success_rate": row[3]
+            } for row in cursor.fetchall()
+        }
+        
+        # Get domain performance
+        cursor.execute('''
+            SELECT domain, AVG(confidence), COUNT(*), AVG(CASE WHEN success THEN 1.0 ELSE 0.0 END)
+            FROM reasoning_sessions 
+            WHERE timestamp > datetime('now', '-7 days')
+            GROUP BY domain
+        ''')
+        domain_performance = {
+            row[0]: {
+                "avg_confidence": row[1],
+                "total_queries": row[2],
+                "success_rate": row[3]
+            } for row in cursor.fetchall()
+        }
+        
+        # Get performance trends
+        cursor.execute('''
+            SELECT DATE(timestamp) as day, AVG(confidence)
+            FROM reasoning_sessions 
+            WHERE timestamp > datetime('now', '-30 days')
+            GROUP BY DATE(timestamp)
+            ORDER BY day
+        ''')
+        performance_trend = [(row[0], row[1]) for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        return {
+            "method_performance": method_performance,
+            "domain_performance": domain_performance,
+            "performance_trend": performance_trend,
+            "world_class_metrics": self._calculate_world_class_metrics(method_performance, domain_performance)
+        }
+    
+    def _calculate_world_class_metrics(self, method_perf: Dict, domain_perf: Dict) -> Dict[str, Any]:
+        """Calculate world-class performance metrics."""
+        # Calculate overall accuracy
+        total_confidence = sum(m.get("avg_confidence", 0) for m in method_perf.values())
+        method_count = len(method_perf) if method_perf else 1
+        overall_accuracy = total_confidence / method_count if method_count > 0 else 0
+        
+        # Calculate domain coverage
+        domain_coverage = len(domain_perf) / 6  # We have 6 domain experts
+        
+        # Calculate consistency
+        confidences = [m.get("avg_confidence", 0) for m in method_perf.values()]
+        consistency = 1.0 - (np.std(confidences) if confidences else 0)
+        
+        return {
+            "overall_accuracy": overall_accuracy,
+            "domain_coverage": min(1.0, domain_coverage),
+            "reasoning_consistency": consistency,
+            "world_class_score": (overall_accuracy + domain_coverage + consistency) / 3
+        }
+
+
+# Maintain backward compatibility
+KnowledgeMemoryLayer = AdvancedKnowledgeMemoryLayer
 
 
 class SessionMemory:

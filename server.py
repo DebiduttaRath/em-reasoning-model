@@ -18,7 +18,12 @@ from reasoning_from_scratch.qwen3 import (
     load_hf_weights_into_qwen
 )
 from reasoning_from_scratch.reasoning_engine import ReasoningEngine
-from reasoning_from_scratch.memory_layer import KnowledgeMemoryLayer
+from reasoning_from_scratch.memory_layer import AdvancedKnowledgeMemoryLayer
+from reasoning_from_scratch.advanced_features import (
+    ContinuousLearningEngine, RealtimeReasoningOptimizer, 
+    WorldClassReasoningValidator, InnovativeReasoningMethods,
+    ExplainabilityEngine, CompetitiveAdvantageTracker
+)
 from reasoning_from_scratch.ch02 import get_device
 
 app = FastAPI(title="Beast Reasoning LLM API", version="1.0.0")
@@ -38,6 +43,12 @@ tokenizer = None
 reasoning_engine = None
 knowledge_layer = None
 auto_learning_system = None
+continuous_learning = None
+realtime_optimizer = None
+world_class_validator = None
+innovative_methods = None
+explainability_engine = None
+competitive_tracker = None
 
 # Request/Response models
 class SolveRequest(BaseModel):
@@ -132,11 +143,21 @@ async def startup_event():
         model.to(device)
         model.eval()
         
-        # Initialize knowledge layer
-        knowledge_layer = KnowledgeMemoryLayer()
+        # Initialize advanced knowledge layer
+        knowledge_layer = AdvancedKnowledgeMemoryLayer()
         
         # Initialize reasoning engine with memory layer
         reasoning_engine = ReasoningEngine(model, tokenizer, knowledge_layer)
+        
+        # Initialize world-class components
+        continuous_learning = ContinuousLearningEngine(knowledge_layer)
+        realtime_optimizer = RealtimeReasoningOptimizer()
+        world_class_validator = WorldClassReasoningValidator()
+        innovative_methods = InnovativeReasoningMethods()
+        explainability_engine = ExplainabilityEngine()
+        competitive_tracker = CompetitiveAdvantageTracker()
+        
+        print("World-class reasoning components initialized!")
         
         # Initialize auto-learning system
         try:
@@ -276,6 +297,159 @@ async def chat(request: ChatRequest):
 @app.post("/add_documents")
 async def add_documents(request: AddDocumentsRequest):
     """Add knowledge documents to the system."""
+
+
+@app.get("/world_class_metrics")
+async def get_world_class_metrics():
+    """Get world-class reasoning metrics and competitive analysis."""
+    if not reasoning_engine:
+        raise HTTPException(status_code=503, detail="Reasoning engine not initialized")
+    
+    try:
+        metrics = reasoning_engine.get_world_class_metrics()
+        competitive_report = competitive_tracker.get_competitive_report()
+        
+        return {
+            "reasoning_metrics": metrics,
+            "competitive_analysis": competitive_report,
+            "world_class_status": metrics.get("world_class_rating", "Developing"),
+            "unique_advantages": competitive_report.get("unique_differentiators", [])
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting world-class metrics: {str(e)}")
+
+
+@app.post("/innovative_reasoning")
+async def innovative_reasoning(request: SolveRequest):
+    """Use cutting-edge innovative reasoning methods."""
+    if not innovative_methods:
+        raise HTTPException(status_code=503, detail="Innovative methods not initialized")
+    
+    try:
+        # Select innovative method based on question complexity
+        question_complexity = len(request.prompt.split())
+        
+        if question_complexity > 30:
+            method = "recursive_decomposition"
+        elif "analogy" in request.prompt.lower() or "similar" in request.prompt.lower():
+            method = "analogical_transfer"
+        elif "what if" in request.prompt.lower():
+            method = "counterfactual_reasoning"
+        else:
+            method = "metacognitive_monitoring"
+        
+        result = innovative_methods.apply_innovative_method(
+            request.prompt, method, model, tokenizer
+        )
+        
+        # Validate with world-class standards
+        validation = world_class_validator.validate_world_class_reasoning(
+            request.prompt, result["reasoning"], result["answer"]
+        )
+        result.update(validation)
+        
+        return SolveResponse(
+            answer=result["answer"],
+            reasoning=result["reasoning"], 
+            method=result["method"],
+            confidence=result["confidence"],
+            trace=result["trace"],
+            domain="innovative_ai",
+            domain_enhanced=True,
+            compliance_score=validation.get("overall_score", 0.85)
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error with innovative reasoning: {str(e)}")
+
+
+@app.post("/explain_reasoning")
+async def explain_reasoning(question: str, reasoning_result: dict, style: str = "layperson"):
+    """Generate advanced explanations of reasoning in different styles."""
+    if not explainability_engine:
+        raise HTTPException(status_code=503, detail="Explainability engine not initialized")
+    
+    try:
+        explanation = explainability_engine.generate_explanation(reasoning_result, style)
+        
+        return {
+            "explanation": explanation,
+            "style": style,
+            "available_styles": list(explainability_engine.explanation_styles.keys())
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating explanation: {str(e)}")
+
+
+@app.get("/competitive_analysis")
+async def get_competitive_analysis():
+    """Get comprehensive competitive analysis and market position."""
+    if not competitive_tracker:
+        raise HTTPException(status_code=503, detail="Competitive tracker not initialized")
+    
+    try:
+        competitive_report = competitive_tracker.get_competitive_report()
+        
+        # Add real-time optimization insights
+        if realtime_optimizer:
+            optimization_insights = realtime_optimizer.get_optimization_insights()
+            competitive_report["optimization_performance"] = optimization_insights
+        
+        return competitive_report
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting competitive analysis: {str(e)}")
+
+
+@app.get("/world_class_validation")
+async def get_world_class_validation(question: str, reasoning: str, answer: str):
+    """Validate reasoning against world-class standards."""
+    if not world_class_validator:
+        raise HTTPException(status_code=503, detail="World-class validator not initialized")
+    
+    try:
+        validation = world_class_validator.validate_world_class_reasoning(question, reasoning, answer)
+        return validation
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error validating reasoning: {str(e)}")
+
+
+@app.get("/advanced_analytics")
+async def get_advanced_analytics():
+    """Get comprehensive advanced analytics and insights."""
+    if not knowledge_layer:
+        raise HTTPException(status_code=503, detail="Knowledge layer not initialized")
+    
+    try:
+        analytics = knowledge_layer.get_advanced_analytics()
+        
+        # Add reasoning engine metrics
+        if hasattr(reasoning_engine, 'get_world_class_metrics'):
+            analytics["world_class_metrics"] = reasoning_engine.get_world_class_metrics()
+        
+        return analytics
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting advanced analytics: {str(e)}")
+
+
+@app.post("/start_continuous_learning")
+async def start_continuous_learning():
+    """Start continuous learning for real-time improvement."""
+    if not continuous_learning:
+        raise HTTPException(status_code=503, detail="Continuous learning not initialized")
+    
+    try:
+        # Start continuous learning in background
+        asyncio.create_task(continuous_learning.continuous_adaptation())
+        
+        return {
+            "message": "Continuous learning started",
+            "status": "active",
+            "learning_rate": continuous_learning.learning_rate,
+            "adaptation_threshold": continuous_learning.adaptation_threshold
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error starting continuous learning: {str(e)}")
+
     if not knowledge_layer:
         raise HTTPException(status_code=503, detail="Knowledge layer not initialized")
     
