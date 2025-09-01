@@ -12,6 +12,7 @@ import tempfile
 import os
 from .ch02 import generate_text_basic_cache
 from .qwen3 import Qwen3Tokenizer
+from .domain_experts import DomainExpertSystem
 
 
 class PromptManager:
@@ -299,6 +300,7 @@ class ReasoningEngine:
         self.self_consistency = SelfConsistencyModule()
         self.tree_of_thoughts = TreeOfThoughts()
         self.verifier = ReasoningVerifier()
+        self.domain_experts = DomainExpertSystem()
         
         # Performance tracking
         self.method_usage_stats = {
@@ -314,15 +316,34 @@ class ReasoningEngine:
         if method in self.method_usage_stats:
             self.method_usage_stats[method] += 1
         
-        # Solve using the selected method
+        # Check for domain expertise
+        domain_prompt, domain_name = self.domain_experts.get_domain_reasoning_prompt(question)
+        
+        # Solve using the selected method with domain enhancement
         if method == "pal":
-            result = self._solve_with_pal(question)
+            result = self._solve_with_pal(question, domain_prompt)
         elif method == "tot":
-            result = self._solve_with_tot(question)
+            result = self._solve_with_tot(question, domain_prompt)
         elif method == "self_consistency":
-            result = self._solve_with_self_consistency(question)
+            result = self._solve_with_self_consistency(question, domain_prompt)
         else:  # Default to chain-of-thought
-            result = self._solve_with_cot(question)
+            result = self._solve_with_cot(question, domain_prompt)
+        
+        # Add domain information to result
+        if domain_name:
+            result["domain"] = domain_name
+            result["domain_enhanced"] = True
+            
+            # Validate reasoning using domain expertise
+            validation = self.domain_experts.validate_domain_reasoning(
+                question, result["reasoning"], result["answer"]
+            )
+            result["domain_validation"] = validation
+            result["compliance_score"] = validation.get("compliance_score", 0.7)
+        else:
+            result["domain"] = "general"
+            result["domain_enhanced"] = False
+            result["compliance_score"] = 0.7
         
         # Track performance if memory layer is available
         if self.memory_layer:
@@ -365,9 +386,13 @@ class ReasoningEngine:
         
         return "cot"  # Default
     
-    def _solve_with_cot(self, question: str) -> Dict[str, Any]:
+    def _solve_with_cot(self, question: str, domain_prompt: str = "") -> Dict[str, Any]:
         """Solve using chain-of-thought reasoning."""
-        prompt = self.prompt_manager.get_prompt("cot", question=question)
+        if domain_prompt:
+            prompt = domain_prompt
+        else:
+            prompt = self.prompt_manager.get_prompt("cot", question=question)
+        
         token_ids = self.tokenizer.encode(prompt).unsqueeze(0)
         
         generated_ids = generate_text_basic_cache(
@@ -385,9 +410,13 @@ class ReasoningEngine:
             "trace": [reasoning]
         }
     
-    def _solve_with_pal(self, question: str) -> Dict[str, Any]:
+    def _solve_with_pal(self, question: str, domain_prompt: str = "") -> Dict[str, Any]:
         """Solve using Program-Aided Language reasoning."""
-        prompt = self.prompt_manager.get_prompt("pal", question=question)
+        if domain_prompt and "code" in domain_prompt.lower():
+            prompt = domain_prompt
+        else:
+            prompt = self.prompt_manager.get_prompt("pal", question=question)
+        
         token_ids = self.tokenizer.encode(prompt).unsqueeze(0)
         
         generated_ids = generate_text_basic_cache(
@@ -410,9 +439,13 @@ class ReasoningEngine:
             "trace": [code, str(execution_result)]
         }
     
-    def _solve_with_self_consistency(self, question: str) -> Dict[str, Any]:
+    def _solve_with_self_consistency(self, question: str, domain_prompt: str = "") -> Dict[str, Any]:
         """Solve using self-consistency with multiple reasoning chains."""
-        prompt = self.prompt_manager.get_prompt("cot", question=question)
+        if domain_prompt:
+            prompt = domain_prompt
+        else:
+            prompt = self.prompt_manager.get_prompt("cot", question=question)
+        
         chains = self.self_consistency.generate_multiple_chains(
             self.model, self.tokenizer, prompt
         )
@@ -428,10 +461,15 @@ class ReasoningEngine:
             "trace": chains
         }
     
-    def _solve_with_tot(self, question: str) -> Dict[str, Any]:
+    def _solve_with_tot(self, question: str, domain_prompt: str = "") -> Dict[str, Any]:
         """Solve using Tree-of-Thoughts reasoning."""
+        # For ToT, we'll enhance the question with domain context if available
+        enhanced_question = question
+        if domain_prompt:
+            enhanced_question = f"{domain_prompt}\n\nOriginal question: {question}"
+        
         result = self.tree_of_thoughts.search(
-            self.model, self.tokenizer, self.verifier, question
+            self.model, self.tokenizer, self.verifier, enhanced_question
         )
         
         return {

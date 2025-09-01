@@ -58,6 +58,10 @@ class SolveResponse(BaseModel):
     confidence: float
     trace: List[str]
     context_used: Optional[str] = None
+    domain: Optional[str] = None
+    domain_enhanced: Optional[bool] = False
+    compliance_score: Optional[float] = None
+    domain_validation: Optional[Dict[str, Any]] = None
 
 class ChatResponse(BaseModel):
     response: str
@@ -65,6 +69,9 @@ class ChatResponse(BaseModel):
     method: str
     confidence: float
     session_id: str
+    domain: Optional[str] = None
+    domain_enhanced: Optional[bool] = False
+    compliance_score: Optional[float] = None
 
 class AddDocumentsRequest(BaseModel):
     documents: List[str]
@@ -80,6 +87,16 @@ class LearnFromUrlRequest(BaseModel):
 
 class AddTopicRequest(BaseModel):
     topic: str
+
+class DomainExpertRequest(BaseModel):
+    question: str
+    domain: Optional[str] = None
+
+class ComplianceCheckRequest(BaseModel):
+    question: str
+    answer: str
+    reasoning: str
+    domain: Optional[str] = None
 
 
 @app.on_event("startup")
@@ -200,7 +217,11 @@ async def solve_problem(request: SolveRequest):
             method=result["method"],
             confidence=result["confidence"],
             trace=result["trace"],
-            context_used=context_prompt if context_prompt else None
+            context_used=context_prompt if context_prompt else None,
+            domain=result.get("domain"),
+            domain_enhanced=result.get("domain_enhanced", False),
+            compliance_score=result.get("compliance_score"),
+            domain_validation=result.get("domain_validation")
         )
         
     except Exception as e:
@@ -242,7 +263,10 @@ async def chat(request: ChatRequest):
             reasoning=result["reasoning"],
             method=result["method"],
             confidence=result["confidence"],
-            session_id=request.session_id
+            session_id=request.session_id,
+            domain=result.get("domain"),
+            domain_enhanced=result.get("domain_enhanced", False),
+            compliance_score=result.get("compliance_score")
         )
         
     except Exception as e:
@@ -348,10 +372,55 @@ async def get_performance_stats():
         # Add reasoning engine stats
         if reasoning_engine:
             stats["method_usage"] = reasoning_engine.method_usage_stats
+            stats["domain_experts"] = reasoning_engine.domain_experts.get_expert_stats()
         
         return stats
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting performance stats: {str(e)}")
+
+
+@app.get("/domain_experts")
+async def get_domain_experts():
+    """Get available domain experts and their capabilities."""
+    if not reasoning_engine:
+        raise HTTPException(status_code=503, detail="Reasoning engine not initialized")
+    
+    try:
+        return reasoning_engine.domain_experts.get_expert_stats()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting domain experts: {str(e)}")
+
+
+@app.post("/domain_prompt")
+async def get_domain_prompt(request: DomainExpertRequest):
+    """Get domain-specific reasoning prompt for a question."""
+    if not reasoning_engine:
+        raise HTTPException(status_code=503, detail="Reasoning engine not initialized")
+    
+    try:
+        prompt, domain = reasoning_engine.domain_experts.get_domain_reasoning_prompt(request.question)
+        return {
+            "prompt": prompt,
+            "domain": domain,
+            "has_domain_expert": domain is not None
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting domain prompt: {str(e)}")
+
+
+@app.post("/compliance_check")
+async def check_compliance(request: ComplianceCheckRequest):
+    """Check reasoning compliance with domain standards."""
+    if not reasoning_engine:
+        raise HTTPException(status_code=503, detail="Reasoning engine not initialized")
+    
+    try:
+        validation = reasoning_engine.domain_experts.validate_domain_reasoning(
+            request.question, request.reasoning, request.answer
+        )
+        return validation
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error checking compliance: {str(e)}")
 
 
 @app.get("/methods")

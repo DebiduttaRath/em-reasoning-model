@@ -6,3 +6,13 @@ pydantic
 requests
 streamlit
 uvicorn
+beautifulsoup4
+feedparser
+schedule
+wikipedia
+aiohttp
+sentence-transformers
+faiss-cpu
+scikit-learn
+pandas
+numpy

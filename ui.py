@@ -193,6 +193,30 @@ def main():
         
         st.markdown("---")
         
+        # Domain Experts Status
+        st.header("🎯 Domain Experts")
+        try:
+            domain_info = requests.get(f"{API_BASE_URL}/domain_experts").json()
+            if "error" not in domain_info:
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Expert Queries", domain_info.get("total_expert_queries", 0))
+                with col2:
+                    st.metric("Available Domains", len(domain_info.get("available_domains", [])))
+                
+                # Show domain distribution
+                if domain_info.get("expert_distribution"):
+                    st.write("**Domain Usage Distribution:**")
+                    for domain, percentage in domain_info["expert_distribution"].items():
+                        if percentage > 0:
+                            st.write(f"• {domain}: {percentage:.1f}%")
+            else:
+                st.warning("Domain experts not available")
+        except:
+            st.warning("Could not load domain expert status")
+        
+        st.markdown("---")
+        
         # Auto-Learning Status
         st.header("🧠 Auto-Learning")
         learning_status = get_learning_status()
@@ -269,7 +293,7 @@ def main():
                 st.error("Failed to end session")
 
     # Main content area
-    tab1, tab2, tab3, tab4 = st.tabs(["🎯 Problem Solver", "💬 Chat Interface", "📊 Reasoning Trace", "📈 Performance"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎯 Problem Solver", "💬 Chat Interface", "📊 Reasoning Trace", "📈 Performance", "🏢 Domain Analysis"])
     
     with tab1:
         st.header("Problem Solver")
@@ -300,13 +324,36 @@ def main():
                 st.markdown("### 🎯 Answer")
                 st.markdown(f"**{result['answer']}**")
                 
-                # Method and confidence
-                col1, col2 = st.columns(2)
+                # Method, confidence, and domain info
+                col1, col2, col3 = st.columns(3)
                 with col1:
                     st.metric("Method Used", result['method'].replace('_', ' ').title())
                 with col2:
                     confidence_pct = int(result['confidence'] * 100)
                     st.metric("Confidence", f"{confidence_pct}%")
+                with col3:
+                    domain = result.get('domain', 'general')
+                    st.metric("Domain", domain.title())
+                
+                # Domain enhancement and compliance
+                if result.get('domain_enhanced'):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.success("✅ Domain Expert Enhanced")
+                    with col2:
+                        compliance = result.get('compliance_score', 0.7)
+                        st.metric("Compliance Score", f"{int(compliance * 100)}%")
+                    
+                    # Show domain validation details
+                    if result.get('domain_validation'):
+                        validation = result['domain_validation']
+                        with st.expander("Domain Validation Details"):
+                            st.write(f"**Valid:** {validation.get('is_valid', True)}")
+                            st.write(f"**Confidence:** {validation.get('confidence', 0.8):.2f}")
+                            if validation.get('validation_notes'):
+                                st.write("**Notes:**")
+                                for note in validation['validation_notes']:
+                                    st.write(f"• {note}")
                 
                 # Store in session state for trace view
                 st.session_state['last_result'] = result
@@ -367,7 +414,14 @@ def main():
                 if message["role"] == "assistant" and "method" in message:
                     with st.expander("View Reasoning"):
                         st.text(message["reasoning"])
-                        st.caption(f"Method: {message['method']} | Confidence: {int(message['confidence']*100)}%")
+                        domain_info = f"Method: {message['method']} | Confidence: {int(message['confidence']*100)}%"
+                        if message.get('domain') and message['domain'] != 'general':
+                            domain_info += f" | Domain: {message['domain'].title()}"
+                        if message.get('domain_enhanced'):
+                            domain_info += " | Expert Enhanced ✅"
+                        if message.get('compliance_score'):
+                            domain_info += f" | Compliance: {int(message['compliance_score']*100)}%"
+                        st.caption(domain_info)
         
         # Clear chat button
         if st.button("🗑️ Clear Chat"):
@@ -490,6 +544,120 @@ def main():
         
         else:
             st.error("Could not load performance statistics.")
+    
+    with tab5:
+        st.header("Domain Expert Analysis")
+        st.markdown("Analyze questions with domain-specific expertise.")
+        
+        # Domain expert testing
+        st.markdown("### 🧪 Test Domain Expert")
+        test_question = st.text_area(
+            "Enter a question to test domain expert selection:",
+            placeholder="Example: What is the credit risk of a borrower with 700 credit score?",
+            height=100
+        )
+        
+        if st.button("🔍 Analyze Domain") and test_question.strip():
+            try:
+                # Get domain prompt
+                payload = {"question": test_question.strip()}
+                response = requests.post(f"{API_BASE_URL}/domain_prompt", json=payload)
+                
+                if response.status_code == 200:
+                    domain_result = response.json()
+                    
+                    if domain_result["has_domain_expert"]:
+                        st.success(f"✅ Domain Expert Available: **{domain_result['domain']}**")
+                        
+                        with st.expander("View Domain-Specific Prompt"):
+                            st.text_area("Generated Prompt:", domain_result["prompt"], height=300, disabled=True)
+                    else:
+                        st.info("ℹ️ No specific domain expert available - will use general reasoning")
+                else:
+                    st.error("Error analyzing domain")
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+        
+        # Domain expert statistics
+        st.markdown("### 📊 Domain Expert Statistics")
+        try:
+            domain_stats = requests.get(f"{API_BASE_URL}/domain_experts").json()
+            
+            if "error" not in domain_stats:
+                # Overall stats
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Total Expert Queries", domain_stats.get("total_expert_queries", 0))
+                with col2:
+                    st.metric("Available Domains", len(domain_stats.get("available_domains", [])))
+                
+                # Available domains
+                st.markdown("### 🎯 Available Domain Experts")
+                domains = domain_stats.get("available_domains", [])
+                for i, domain in enumerate(domains):
+                    usage = domain_stats.get("expert_usage", {}).get(domain, 0)
+                    percentage = domain_stats.get("expert_distribution", {}).get(domain, 0)
+                    
+                    col1, col2, col3 = st.columns([3, 1, 1])
+                    with col1:
+                        st.write(f"**{domain}**")
+                    with col2:
+                        st.write(f"{usage} queries")
+                    with col3:
+                        st.write(f"{percentage:.1f}%")
+                
+                # Usage distribution chart
+                if domain_stats.get("expert_distribution"):
+                    st.markdown("### 📈 Domain Usage Distribution")
+                    usage_data = []
+                    for domain, percentage in domain_stats["expert_distribution"].items():
+                        if percentage > 0:
+                            usage_data.append({"Domain": domain, "Usage %": percentage})
+                    
+                    if usage_data:
+                        st.bar_chart(data={row["Domain"]: row["Usage %"] for row in usage_data})
+                    else:
+                        st.info("No domain expert usage data yet")
+            else:
+                st.error("Could not load domain expert statistics")
+        except Exception as e:
+            st.error(f"Error loading domain statistics: {str(e)}")
+        
+        # Compliance testing
+        st.markdown("### ⚖️ Compliance Checker")
+        with st.expander("Test Reasoning Compliance"):
+            compliance_question = st.text_input("Question:")
+            compliance_reasoning = st.text_area("Reasoning:", height=150)
+            compliance_answer = st.text_input("Answer:")
+            
+            if st.button("Check Compliance") and all([compliance_question, compliance_reasoning, compliance_answer]):
+                try:
+                    payload = {
+                        "question": compliance_question,
+                        "reasoning": compliance_reasoning,
+                        "answer": compliance_answer
+                    }
+                    response = requests.post(f"{API_BASE_URL}/compliance_check", json=payload)
+                    
+                    if response.status_code == 200:
+                        validation = response.json()
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            status = "✅ Valid" if validation.get("is_valid", True) else "❌ Invalid"
+                            st.write(f"**Validation:** {status}")
+                        with col2:
+                            compliance_score = validation.get("compliance_score", 0.7)
+                            st.metric("Compliance Score", f"{int(compliance_score * 100)}%")
+                        
+                        if validation.get("validation_notes"):
+                            st.write("**Validation Notes:**")
+                            for note in validation["validation_notes"]:
+                                st.write(f"• {note}")
+                    else:
+                        st.error("Error checking compliance")
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
 
     # Footer
     st.markdown("---")
