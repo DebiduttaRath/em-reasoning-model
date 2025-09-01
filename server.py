@@ -122,6 +122,7 @@ async def startup_event():
     
     # Download and load model
     print("Loading Qwen3 model...")
+    model_path = "models"
     model_dir = "models/tokenizer.json"
     
     try:
@@ -133,7 +134,7 @@ async def startup_event():
         tokenizer = Qwen3Tokenizer(model_dir)
         
         # Load weights
-        weights_path = f"{model_dir}/qwen3_weights.pt"
+        weights_path = f"{model_path}/qwen3_weights.pt"
         try:
             state_dict = torch.load(weights_path, map_location=device)
             model.load_state_dict(state_dict)
